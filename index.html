@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CBCP Projects Map — Community-Based Competitive Projects</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
+
+<style>
+  /* Base Styles */
+  :root { 
+    --blue: #1E90FF; /* Χρώμα για τα Projects */
+    --blue-dark: #104E8B;
+    --bg1:#f5f7fa; 
+    --bg2:#c3cfe2; 
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 100%)}
+  .header{background:linear-gradient(135deg,var(--blue) 0%,var(--blue-dark) 100%);color:#fff;padding:20px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,1)}
+  .header h1{margin:0;font-size:28px}
+  .header p{margin:6px 0 0;opacity:.95}
+  
+  /* Layout */
+  .main{display:flex;gap:20px;padding:20px;height:calc(100vh - 150px)}
+  .panel{background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.18); padding: 16px;}
+  .map-wrap{position:relative;flex:2;overflow:hidden;min-height:520px;height:100%; padding: 0;}
+  #map{height:100%; width:100%; min-height:520px; background:#eef3f7; border-radius: 14px;}
+  .sidebar{flex:1;display:flex;flex-direction:column;gap:16px;overflow-y:auto; max-height:calc(100vh - 190px);}
+  
+  /* Sidebar List */
+  .loc{background:#f8f9fa;border-left:4px solid var(--blue);border-radius:10px;padding:12px;margin-bottom:12px;cursor:pointer;transition:.25s}
+  .loc:hover{transform:translateX(4px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .loc.active{background:#e8f5e8;border-left-color:var(--blue-dark)}
+  .loc .t{font-weight:bold;margin-bottom:4px; color: var(--blue-dark)}
+  .loc .d{display:inline-block;font-size:12px;background:var(--blue);color:#fff;padding:3px 8px;border-radius:4px;margin:4px 0 8px}
+  .loc .org{font-size:12px;color:#444;line-height:1.4}
+  
+  /* Map Popup Styling */
+  .popup .title{font-weight:bold;color:var(--blue-dark);margin-bottom:4px; font-size: 14px;}
+  .popup .applicant{font-size:12px;color:#555;}
+  .popup ul{margin:6px 0 0 18px;padding:0; list-style-type: disc;}
+  .popup li{margin:3px 0; font-size: 12px;}
+  .popup b{font-weight: bold; color: #333;}
+  .popup h4{font-size: 13px; margin: 8px 0 4px 0; color: var(--blue);}
+  
+  /* Responsive */
+  @media (max-width: 900px){
+    .main{flex-direction:column;height:auto}
+    .map-wrap{height:420px;min-height:420px; padding: 0;}
+    #map{min-height:420px}
+    .sidebar{max-height:none}
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔥 CBCP Projects Map - Western Balkans</h1>
+    <p>Community-Based Competitive Projects for Wildfire Resilience</p>
+  </div>
+
+  <div class="main">
+    <div class="panel map-wrap">
+      <div id="map"></div>
+    </div>
+
+    <div class="panel sidebar">
+      <h3>📋 Project List (14)</h3>
+
+      <div id="project-list-container">
+        </div>
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // --- Project Data (Extracted and Mapped to Coordinates) ---
+  const projects = [
+    { id: 1, title: "Cross-border Fire Prevention", applicant: "FEA (BiH/Serbia, NGO)", duration: "9 mo", budget: "83,515 / 74,515 CHF", location: "Tara NP (Serbia) & Trebević PL (BiH)", crossborder: "Yes", coords: [43.8333, 19.5667],
+      objective: "Apply advanced fire detection and management technologies (LFM framework) for ecosystem resilience and cross-border cooperation.",
+      outcomes: "Technical specifications for advanced detection systems, pilot tests in Tara NP, enhanced cross-border cooperation and community awareness." },
+      
+    { id: 2, title: "CYCLE-FIRE", applicant: "Shoqata Kreo (AL, NGO) + OYA (MK), NFA (AL)", duration: "14 mo", budget: "86,400 / 76,600 CHF", location: "AL: Bulqiza, Burrel; MK: Gostivar, Mavrovo-Rostusha", crossborder: "Yes", coords: [41.56, 20.25], 
+      objective: "Prevent landscape fires in critical areas via community interaction to establish self-sustaining LFM initiatives.",
+      outcomes: "Enhanced capacity (14 community leaders), increased community awareness of traditional/modern LFM, strengthened AL-MK cross-border cooperation." },
+      
+    { id: 3, title: "EcoFire Youth Ambassadors (Lake Ohrid)", applicant: "Ekomenlog Ohrid (MK, NGO)", duration: "14 mo", budget: "~30,000 CHF", location: "Lake Ohrid (UNESCO Site), MK", crossborder: "No", coords: [41.11, 20.80], 
+      objective: "Enhance fire management capacity and sustainability by engaging youth/community through training, ecological practices, and innovative technology to preserve Lake Ohrid's heritage.",
+      outcomes: "Enhanced fire management capacity (e.g., 10km ecological fire breaks, training 30 farmers/50 ambassadors), preservation of cultural heritage (documenting 15 historical practices), development of a mobile app for participatory fire monitoring." },
+      
+    { id: 4, title: "Fire-Safe Farming Practices in Novaci", applicant: "REC (MK, NGO)", duration: "15 mo", budget: "33,148 / 29,998 CHF", location: "Novaci Municipality, MK", crossborder: "No", coords: [41.03, 21.43], 
+      objective: "Promote and establish fire-safe agricultural practices to reduce fuel load, ignition risk, and fire damage frequency in the region.",
+      outcomes: "Increased knowledge of fire risks/prevention among local farmers, adoption of safe farming practices, development of fire monitoring plans and creation of green fire breaks." },
+      
+    { id: 5, title: "Community Fire Guardians (PEN)", applicant: "Peer Educators Network (PEN), (Kosovo, NGO)", duration: "12 mo", budget: "33,300 / 30,000 CHF", location: "Kamenica, Lipjan, Suhareka (KS)", crossborder: "No", coords: [42.45, 21.0], 
+      objective: "Promote responsibility and proactive behavior among youth and local communities in fire prevention and management efforts.",
+      outcomes: "Increased youth awareness/involvement, successful launch of a Fire Monitoring App, improved early fire detection, and creation of long-term sustainable 'Youth Guardians' groups." },
+      
+    { id: 6, title: "Fire Free – Reducing the Risk in Gramsh", applicant: "Association 'Together for Life' (AL, NGO)", duration: "12 mo", budget: "32,949 / 29,769 CHF", location: "Gramsh Municipality, AL", crossborder: "No", coords: [40.86, 20.20], 
+      objective: "Strengthen community participation and local government capacity in LFM practices to reduce landscape fire risks.",
+      outcomes: "Gramsh community increases LFM capacity/activity; local government enhances risk assessment capacity and local strategy/plan development for risk reduction." },
+      
+    { id: 7, title: "Wildfire Resilience and LFM Initiative (WRLMI)", applicant: "IBC-M (Kosovo, NGO/College)", duration: "15 mo", budget: "30,000 / 27,274 CHF", location: "North Mitrovica & Zvečan (KS)", crossborder: "No", coords: [42.89, 20.86], 
+      objective: "Develop a modern and inclusive approach connecting all stakeholders for protection and risk reduction of landscape fires.",
+      outcomes: "Fire Service capacity development (e.g., training 8 firefighters on drones/GIS), development of risk maps and Action Plans for North Mitrovica and Zvečan municipalities." },
+      
+    { id: 8, title: "FireGuard: Wildfire Resilience in Serbia", applicant: "BSDSP 'Dr Sava Petrović' (Serbia, NGO)", duration: "18 mo", budget: "33,959 / 29,919 CHF", location: "Lalinačka Slatina Nature Monument & other sites, Serbia", crossborder: "No", coords: [43.30, 21.80], 
+      objective: "Improve wildfire resilience and management in Serbia's protected areas via advanced detection systems, community involvement, and capacity building.",
+      outcomes: "Enhanced early detection via thermal cameras upgrade, development of effective action plans/protocols, creation of the first comprehensive Fire Management Manual for protected areas, and scientific publications." },
+      
+    { id: 9, title: "Youth on Fire (C.E.Z.A.R.)", applicant: "Association 'C.E.Z.A.R.' (Republika Srpska, BiH, NGO)", duration: "13 mo", budget: "27,715 / 25,000 CHF", location: "Srbac, Lijevče polje (BiH)", crossborder: "No", coords: [45.10, 17.53], 
+      objective: "Actively involve local youth and communities in LFM, integrating traditional prevention knowledge with modern practices through education and cooperation.",
+      outcomes: "Increased local youth knowledge/awareness, improved fire management capacity, preservation/integration of traditional/modern knowledge, and design of sustainable educational programs." },
+      
+    { id: 10, title: "Empowering Citizens in Sustainable Fire Management", applicant: "NU Organization KOD (Montenegro, NGO)", duration: "15 mo", budget: "29,972 / 27,197 CHF", location: "Montenegro (3 targeted municipalities)", crossborder: "No", coords: [42.70, 19.37], 
+      objective: "Empower local communities for active forest fire management, integrating traditional knowledge with innovative techniques (GIS and drones).",
+      outcomes: "Development and use of GIS-based fire risk maps, training of up to 60 scouts in fire management, drone-assisted reforestation using low-flammability seed balls." },
+      
+    { id: 11, title: "FireGuard Network", applicant: "Assoc. Private Forest Owners 'Bor' (Serbia)", duration: "12 mo", budget: "30,000 / 26,575 CHF", location: "Užice and Požega (Western Serbia)", crossborder: "No", coords: [43.85, 20.0], 
+      objective: "Improve the link between local communities and official LFM stakeholders in Serbia through active civil society participation.",
+      outcomes: "Improved LFM approach through networking (NGOs, communities, officials), creation of a civil network of trained citizens in 5 remote communities, online database of alternative fire equipment, and improved fire break design planning dialogue." },
+      
+    { id: 12, title: "FireSafe Jezero", applicant: "Jezero Municipality + PSRI (Republika Srpska, BiH)", duration: "15 mo", budget: "33,000 / 29,700 CHF", location: "Jezero Municipality (BiH)", crossborder: "No", coords: [44.75, 17.06], 
+      objective: "Enhance fire safety and preparedness in Jezero Municipality through integrated prevention, education, and awareness of fire risks and climate change.",
+      outcomes: "Enhanced fire safety/preparedness, increased environmental awareness among rural children, standardized fire safety documentation (e.g., safety analysis/regulation/evacuation plan), and increased visitor awareness (e.g., QR code signs in critical locations)." },
+      
+    { id: 13, title: "Strengthening Capacities (LAG Plačkovica)", applicant: "LAG PLACKOVICA (MK, NGO)", duration: "18 mo", budget: "38,510 / 29,940 CHF", location: "Plačkovica region (Konce, Karbinci, Radovis, Stip), MK", crossborder: "No", coords: [41.76, 22.40], 
+      objective: "Strengthen the resilience of four municipalities to landscape fire risks by enhancing local stakeholder capacity, improving coordination, and increasing community awareness.",
+      outcomes: "Enhanced knowledge/skills of local stakeholders, improved coordination between local/regional/national actors, increased community awareness, and establishment of local structures (Committees/Working Groups) for continuous fire management." },
+      
+    { id: 14, title: "Strengthening the response to landscape fires", applicant: "Assoc. of young ecologists of Niksic (Montenegro)", duration: "15 mo", budget: "35,048 / 29,875 CHF", location: "Niksic, Pluzine, Savnik (Montenegro)", crossborder: "No", coords: [43.10, 18.9],
+      objective: "Contribute to the reduction of forest fire risk in Montenegro.",
+      outcomes: "Improved cooperation between local stakeholders, enhanced community awareness via education/digital campaign, improved local risk reduction strategy (via Case Study/Action Plan), and enhanced institutional capacity (e.g., procurement of 3 drones for proactive ground monitoring)." }
+  ];
+
+  // --- Map Initialization and Base Layers ---
+  
+  // 1. Base Layers 
+  const openStreetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  });
+
+  // FIX 1: Replaced retired Stamen Terrain with OpenTopoMap
+  const openTopoMap = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+  });
+
+  const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    maxZoom: 18
+  });
+
+  // 2. Overlay Layers 
+
+  // FIX 3 (A): Using CartoDB Positron Labels (transparent tiles) for City/Road Labels
+  const labelsOverlay = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+    attribution: '© CartoDB, © OpenStreetMap contributors',
+    maxZoom: 19,
+    pane: 'labelsPane' // Ensures it is on top
+  });
+  
+  // FIX 3 (B): Using a potential working replacement for Administrative Boundaries (OSM-Intl style, for visualization)
+  const boundaryOverlay = L.tileLayer('https://tiles.wmflabs.org/osm-intl/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 18,
+    opacity: 0.6 // Reduced opacity to show map below
+  });
+  
+  // Initialize the Map
+  const map = L.map('map', { 
+    center: [42.8, 20.5], 
+    zoom: 6, 
+    layers: [openStreetMap],
+    zoomControl: true 
+  });
+
+  // Ensure the labels layer is on top of other layers (like Satellite)
+  map.createPane('labelsPane');
+  map.getPane('labelsPane').style.zIndex = 650; 
+
+  // FIX 2: Layer Control Names changed to English
+  const baseLayers = {
+    "🗺️ OSM Standard": openStreetMap,
+    "🏔️ Terrain (OpenTopoMap)": openTopoMap, // Updated Layer
+    "🛰️ Satellite (Esri)": esriSatellite
+  };
+  
+  // FIX 2: Layer Control Names changed to English
+  const overlayLayers = {
+    "🌐 Administrative Boundaries": boundaryOverlay,
+    "🏷️ City/Road Labels": labelsOverlay
+  };
+  
+  // Add Layer Control to the map
+  L.control.layers(baseLayers, overlayLayers).addTo(map);
+
+
+  // --- Custom Icon and Markers ---
+
+  function iconBadge(emoji = '🔥', bg='#1E90FF') { 
+    return L.divIcon({
+      html:`<div style="background:${bg};width:34px;height:34px;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:bold;color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.3)">${emoji}</div>`,
+      className:'project-marker', 
+      iconSize:[34,34], 
+      iconAnchor:[17,34],
+      popupAnchor:[0,-30]
+    });
+  }
+  
+  const markers = [];
+  const projectListContainer = document.getElementById('project-list-container');
+
+  projects.forEach((proj, i) => {
+    // 1. Create Popup HTML
+    const popupContent = `
+      <div class="popup">
+        <div class="title">Project #${proj.id}: ${proj.title}</div>
+        <div class="applicant"><b>Applicant:</b> ${proj.applicant}</div>
+        <ul>
+          <li><b>Location:</b> ${proj.location}</li>
+          <li><b>Duration:</b> ${proj.duration}</li>
+          <li><b>Budget (Total/Requested):</b> ${proj.budget}</li>
+          <li><b>Cross-border:</b> ${proj.crossborder}</li>
+        </ul>
+        <h4>Objective (Goal)</h4>
+        <div class="small">${proj.objective}</div>
+        <h4>Expected Outcomes (Examples)</h4>
+        <div class="small">${proj.outcomes}</div>
+      </div>`;
+
+    // 2. Create Marker
+    const coords = proj.coords; 
+    
+    const marker = L.marker(coords, {
+      icon: iconBadge(proj.id)
+    }).addTo(map);
+    
+    marker.bindPopup(popupContent, { maxWidth: 350 });
+    marker.projectIndex = i;
+    markers.push(marker);
+
+    // 3. Create Sidebar Element
+    const locDiv = document.createElement('div');
+    locDiv.className = 'loc';
+    locDiv.dataset.i = i;
+    locDiv.setAttribute('tabindex', '0');
+    locDiv.setAttribute('role', 'button');
+    locDiv.innerHTML = `
+      <div class="t">Project #${proj.id}: ${proj.title}</div>
+      <div class="d">${proj.duration} • Cross-border: ${proj.crossborder}</div>
+      <div class="org small">
+        <b>Applicant:</b> ${proj.applicant} <br/>
+        <b>Location:</b> ${proj.location} <br/>
+        <b>Focus:</b> ${proj.objective}
+      </div>
+    `;
+    
+    // 4. Add click listener to sidebar element
+    locDiv.addEventListener('click', () => {
+      // Highlight sidebar item
+      document.querySelectorAll('.loc').forEach(e => e.classList.remove('active'));
+      locDiv.classList.add('active');
+      
+      // Center map and open popup
+      map.setView(coords, 8, { animate: true });
+      marker.openPopup();
+    });
+    
+    // Add keydown listener for accessibility (Enter/Space)
+    locDiv.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            locDiv.click();
+        }
+    });
+
+    projectListContainer.appendChild(locDiv);
+  });
+
+  // Ensure Leaflet knows final size and fit bounds
+  window.addEventListener('load', () => {
+    map.invalidateSize(true);
+    
+    // Fit map view to all markers
+    const group = new L.featureGroup(markers);
+    if (group.getLayers().length > 0) {
+      map.fitBounds(group.getBounds().pad(0.08));
+    }
+  });
+
+  window.addEventListener('resize', () => map.invalidateSize(true));
+</script>
+</body>
+</html>
